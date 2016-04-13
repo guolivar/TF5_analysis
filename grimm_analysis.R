@@ -6,6 +6,8 @@ require(ggplot2)
 require(rworldmap)
 require(ggmap)
 require(mapproj)
+require(corrgram)
+require(corrplot)
 
 # Load the data and create date fields ####
 # Where are the data
@@ -31,9 +33,18 @@ gps.data <- read.csv(paste0(data.path,gps.file), stringsAsFactors = FALSE)
 gps.data$date <- as.POSIXct(paste(gps.data$Date,gps.data$Time),format = "%d/%m/%Y %H:%M:%S",tz = 'UTC')
 
 # Merge the data ####
-march_data <- merge(gps.data,grimm.dndlog,by = 'date', all = TRUE)
-march_data.1min <- timeAverage(march_data,avg.time = '1 min')
-march_data.5min <- timeAverage(march_data,avg.time = '5 min')
+march_data <- merge(gps.data,grimm.data,by = 'date', all = TRUE)
+march_data.10min <- timeAverage(march_data,avg.time = '10 min')
+march_data.30min <- timeAverage(march_data,avg.time = '30 min')
+
+# Move to dN/dLogDp
+dn10.10min <- (march_data.10min$N10 - march_data.10min$n265)/log10(265/10)
+dn10.30min <- (march_data.30min$N10 - march_data.30min$n265)/log10(265/10)
+march_data.dndlogdp <- merge(gps.data,grimm.dndlog,by = 'date', all = TRUE)
+march_data.dndlogdp.10min <- timeAverage(march_data.dndlogdp,avg.time = '10 min')
+march_data.dndlogdp.30min <- timeAverage(march_data.dndlogdp,avg.time = '30 min')
+march_data.dndlogdp.10min$N10 <- dn10.10min
+march_data.dndlogdp.30min$N10 <- dn10.30min
 
 # Summary plots ####
 # Position of the ship
@@ -43,10 +54,27 @@ points(march_data.5min$Longitude,march_data.5min$Latitude,col = 'red', cex = .6)
 centreLat <- mean(march_data.1min$Latitude,na.rm = TRUE)
 centreLon <- mean(march_data.1min$Longitude,na.rm = TRUE)
 
-map <- get_map(location = c(centreLat,centreLon),zoom  = 3, maptype = "terrain")
+map <- get_map(location = c(centreLon,centreLat),zoom  = 3, maptype = "terrain")
 ggmap(map) + 
   geom_point(aes(x=Longitude,y=Latitude,colour = log10(n265)),size = 3,data = march_data.1min, alpha = .3) +
   scale_colour_gradient(low = "white",high = "red")
+
+ggmap(map) + 
+  geom_point(aes(x=Longitude,y=Latitude,colour = log10(N10)),size = 3,data = march_data.1min, alpha = .3) +
+  scale_colour_gradient(low = "white",high = "red")
+
+# Size distribution
+plot((colMeans(march_data.dndlogdp.1min[,c(2,5:35)],na.rm = TRUE)))
+
+
+# Correlation to identify aerosol modes
+
+for_correl <- march_data.1min[,c(5:35)]
+find_channels <- cor(for_correl,use = 'pairwise')
+
+corrgram(find_channels)
+corrplot(find_channels,method = 'circle')
+
 
 # Analysis:
 # For each datapoint, calculate the 48hr backtrajectories (Hysplit) and add the "land covered" to get a total of "land influenced airmass" for each datapoint ... explore other metrics.
