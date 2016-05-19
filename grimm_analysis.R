@@ -8,6 +8,8 @@ require(ggmap)
 require(mapproj)
 require(corrgram)
 require(corrplot)
+require(opentraj)
+require(doParallel)
 
 # Load the data and create date fields ####
 # Where are the data
@@ -129,3 +131,16 @@ corrplot(find_channels,method = 'circle')
 # Analysis:
 # For each datapoint, calculate the 48hr backtrajectories (Hysplit) and add the "land covered" to get a total of "land influenced airmass" for each datapoint ... explore other metrics.
 
+playing_data <- subset(march_data.10min, subset = (date>as.POSIXct("2013-02-27 21:14:00", tz = "UTC") & date<as.POSIXct("2013-02-27 22:38:00", tz = "UTC")))
+centreLat <- mean(playing_data$Latitude,na.rm = TRUE)
+centreLon <- mean(playing_data$Longitude,na.rm = TRUE)
+
+sample_traj <- ProcTraj(centreLat,centreLon,
+                        hour.interval = 1,
+                        name = "SOAP1",
+                        start.hour = "00:00",
+                        end.hour = "23:00",
+                        met_path,
+                        './',
+                        hours = -24, height = 50,
+                        )
