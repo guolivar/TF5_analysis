@@ -10,6 +10,8 @@ require(corrgram)
 require(corrplot)
 require(opentraj)
 require(doParallel)
+require(rgdal)
+require(sp)
 
 # Load the data and create date fields ####
 # Where are the data
@@ -131,16 +133,28 @@ corrplot(find_channels,method = 'circle')
 # Analysis:
 # For each datapoint, calculate the 48hr backtrajectories (Hysplit) and add the "land covered" to get a total of "land influenced airmass" for each datapoint ... explore other metrics.
 
-playing_data <- subset(march_data.10min, subset = (date>as.POSIXct("2013-02-27 21:14:00", tz = "UTC") & date<as.POSIXct("2013-02-27 22:38:00", tz = "UTC")))
-centreLat <- mean(playing_data$Latitude,na.rm = TRUE)
-centreLon <- mean(playing_data$Longitude,na.rm = TRUE)
+# Load Land use data from LUCAS
+land_use <- readOGR("/home/gustavo/data/TF5_JapanNZvoyage/gis_layers/lucas-nz-land-use-map-1990-2008-2012-v016","lucas-nz-land-use-map-1990-2008-2012-v016")
 
-sample_traj <- ProcTraj(centreLat,centreLon,
-                        hour.interval = 1,
-                        name = "SOAP1",
-                        start.hour = "00:00",
-                        end.hour = "23:00",
-                        met_path,
-                        './',
-                        hours = -24, height = 50,
-                        )
+# Restrict analysis to 26 Feb to 2 Mar
+data_for_backtrajectories <- subset(march_data.10min, subset = (date>as.POSIXct("2013-02-26 02:00:00", tz = "UTC") & date<as.POSIXct("2013-03-02 23:59:00", tz = "UTC")))
+data_for_backtrajectories$land_use <- data_for_backtrajectories$N10
+n_points <- length(data_for_backtrajectories$date)
+for (point_nr in (1:n_points)) {
+  sample_traj <- ProcTraj(data_for_backtrajectories$Latitude[point_nr],
+                          data_for_backtrajectories$Longitude[point_nr],
+                          hour.interval = 1,
+                          name = "SOAP1",
+                          start.hour = format(data_for_backtrajectories$date[point_nr],format="%H:00"),
+                          end.hour = format(data_for_backtrajectories$date[point_nr],format="%H:00"),
+                          '~/data/hysplit/trunk/working/',
+                          '~/repositories/TF5_analysis/',
+                          hours = -48, height = 50,
+                          '~/data/hysplit/trunk',
+                          dates = format(data_for_backtrajectories$date[point_nr],format="%Y-%m-%d"))
+  traj_spdf <- SpatialPointsDataFrame(coords = xy,
+                                      data = sample_traj,
+                                      proj4string = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
+  land_use_for_trajectories <- over(spdf,land_use)
+  data_for_backtrajectories$land_use[point_nr] <- sum(land_use_for_trajectories$LUC_ID >0,na.rm = TRUE)
+}
