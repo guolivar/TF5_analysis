@@ -59,93 +59,32 @@ march_data.1min$dN10 <- dn10.1min
 march_data.10min$dN10 <- dn10.10min
 march_data.30min$dN10 <- dn10.30min
 
-# Summary plots ####
-# Position of the ship
-newmap <- getMap(resolution = "low")
-plot(newmap,xlim = c(160,175), ylim = c(-45,0))
-points(march_data.30min$Longitude,march_data.30min$Latitude,col = 'red', cex = .6)
-centreLat <- mean(march_data.10min$Latitude,na.rm = TRUE)
-centreLon <- mean(march_data.10min$Longitude,na.rm = TRUE)
-centreLat <- -40.025
-centreLon <- 172.964
-map <- get_map(location = c(centreLon,centreLat),zoom  = 7, maptype = "terrain")
-ggmap(map) + 
-  geom_point(aes(x=Longitude,y=Latitude,colour = log10(n265)),size = 3,data = march_data.10min, alpha = .3) +
-  scale_colour_gradient(low = "white",high = "red")
-
-ggmap(map) + 
-  geom_point(aes(x=Longitude,y=Latitude,colour = log10(N10)),size = 3,data = march_data.10min, alpha = .3) +
-  scale_colour_gradient(low = "white",high = "red")
-
-# Size distribution
-
-# Before
-size_dist_data <- subset(march_data.10min, subset = (date>as.POSIXct("2013-02-27 20:00:00", tz = "UTC") & date<as.POSIXct("2013-02-27 21:00:00", tz = "UTC")))[,c(5:35)]
-ave_size_dist_before <- data.frame(dp = dp, dndlogdp = colMeans(size_dist_data,na.rm = TRUE)*sp)
-
-size_dist_data <- subset(march_data.10min, subset = (date>as.POSIXct("2013-02-27 21:14:00", tz = "UTC") & date<as.POSIXct("2013-02-27 22:38:00", tz = "UTC")))[,c(5:35)]
-ave_size_dist_during <- data.frame(dp = dp, dndlogdp = colMeans(size_dist_data,na.rm = TRUE)*sp)
-
-size_dist_data <- subset(march_data.10min, subset = (date>as.POSIXct("2013-02-27 22:40:00", tz = "UTC") & date<as.POSIXct("2013-02-27 23:52:00", tz = "UTC")))[,c(5:35)]
-ave_size_dist_after <- data.frame(dp = dp, dndlogdp = colMeans(size_dist_data,na.rm = TRUE)*sp)
-
-#size_dist_data <- subset(march_data.10min, subset = (date>as.POSIXct("2013-02-27 04:53:00", tz = "UTC") & date<as.POSIXct("2013-02-27 05:52:00", tz = "UTC")))[,c(5:35)]
-#ave_size_dist_after2 <- data.frame(dp = dp, dndlogdp = colMeans(size_dist_data,na.rm = TRUE)*vp)
-
-ggplot(ave_size_dist_before,aes(x=dp,y=dndlogdp))+
-  geom_line(aes(colour = 'before'))+
-  geom_line(aes(y=ave_size_dist_during$dndlogdp,colour = 'during'))+
-  geom_line(aes(y=ave_size_dist_after$dndlogdp,colour = 'after'))+
-#  geom_line(aes(y=ave_size_dist_after2$dndlogdp,colour = 'after2'))+
-  #scale_color_discrete()+
-  scale_x_log10()+
-  scale_y_log10()
-
-# During
-size_dist_data <- timeAverage(march_data.10min, start.date = "", end.date = "")
-ave_size_dist <- data.frame(dp = c(51,dp), dndlogdp = colMeans(size_dist_data,na.rm = TRUE))
-ggplot(ave_size_dist,aes(x=dp,y=dndlogdp))+
-  geom_point(colour = 'red')+
-  geom_smooth(method = "lm", formula = y ~ splines::bs(x, 6))+
-  scale_x_log10()+
-  scale_y_log10()
-
-# After
-size_dist_data <- timeAverage(march_data.10min, start.date = "", end.date = "")
-ave_size_dist <- data.frame(dp = c(51,dp), dndlogdp = colMeans(size_dist_data,na.rm = TRUE))
-ggplot(ave_size_dist,aes(x=dp,y=dndlogdp))+
-  geom_point(colour = 'red')+
-  geom_smooth(method = "lm", formula = y ~ splines::bs(x, 6))+
-  scale_x_log10()+
-  scale_y_log10()
-
-
-
-# Correlation to identify aerosol modes
-
-for_correl <- march_data.10min[,c(37,5:35)]
-find_channels <- cor(for_correl,use = 'pairwise')
-
-corrgram(find_channels)
-corrplot(find_channels,method = 'circle')
-
-
 # Analysis:
 # For each datapoint, calculate the 48hr backtrajectories (Hysplit) and add the "land covered" to get a total of "land influenced airmass" for each datapoint ... explore other metrics.
 
 # Load Land use data from LUCAS
 land_use <- readOGR("/home/gustavo/data/TF5_JapanNZvoyage/gis_layers/lucas-nz-land-use-map-1990-2008-2012-v016","lucas-nz-land-use-map-1990-2008-2012-v016")
 
-# Restrict analysis to 26 Feb to 2 Mar
-data_for_backtrajectories <- subset(march_data.10min, subset = (date>as.POSIXct("2013-02-26 02:00:00", tz = "UTC") & date<as.POSIXct("2013-03-02 23:59:00", tz = "UTC")))
+# Restrict analysis to "near NZ" (26 to 28 Feb)
+data_for_backtrajectories <- subset(march_data.10min, subset = (date>as.POSIXct("2013-02-26 04:30:00", tz = "UTC") & date<as.POSIXct("2013-03-01 00:00:00", tz = "UTC")))
 data_for_backtrajectories$forest <- NA*data_for_backtrajectories$N10
 data_for_backtrajectories$grassland <- data_for_backtrajectories$forest
 data_for_backtrajectories$cropland <- data_for_backtrajectories$forest
 data_for_backtrajectories$wetland <- data_for_backtrajectories$forest
 data_for_backtrajectories$settlements <- data_for_backtrajectories$forest
 data_for_backtrajectories$otherland <- data_for_backtrajectories$forest
+
+# Summary plots ####
+# Position of the ship
+centreLat <- mean(data_for_backtrajectories$Latitude,na.rm = TRUE)
+centreLon <- mean(data_for_backtrajectories$Longitude,na.rm = TRUE)
+map <- get_map(location = c(centreLon,centreLat),zoom  = 4, maptype = "terrain")
+ggmap(map) + 
+  geom_point(aes(x=Longitude,y=Latitude,colour = log10(n265)),size = 3,data = data_for_backtrajectories, alpha = .3) +
+  scale_colour_gradient(low = "white",high = "red")
+
 n_points <- length(data_for_backtrajectories$date)
-for (point_nr in (1:5)) {
+for (point_nr in (1:n_points)) {
   sample_traj <- ProcTraj(data_for_backtrajectories$Latitude[point_nr],
                           data_for_backtrajectories$Longitude[point_nr],
                           hour.interval = 1,
@@ -157,10 +96,13 @@ for (point_nr in (1:5)) {
                           hours = -48, height = 50,
                           '~/data/hysplit/trunk',
                           dates = format(data_for_backtrajectories$date[point_nr],format="%Y-%m-%d"))
+  # extract lon-lat pairs from trajectory
+  xy = sample_traj[,c(8,7)]
+  # convert trajectory dataframe into "spatial point data frame"
   traj_spdf <- SpatialPointsDataFrame(coords = xy,
                                       data = sample_traj,
                                       proj4string = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
-  land_use_for_trajectories <- over(spdf,land_use)
+  land_use_for_trajectories <- over(traj_spdf,land_use)
   data_for_backtrajectories$forest[point_nr] <- sum((land_use_for_trajectories$LUC_ID <=73 &  land_use_for_trajectories$LUC_ID >=71),na.rm = TRUE)
   data_for_backtrajectories$grassland[point_nr] <- sum((land_use_for_trajectories$LUC_ID <=76 &  land_use_for_trajectories$LUC_ID >=74),na.rm = TRUE)
   data_for_backtrajectories$cropland[point_nr] <- sum((land_use_for_trajectories$LUC_ID <=78 &  land_use_for_trajectories$LUC_ID >=77),na.rm = TRUE)
@@ -168,3 +110,9 @@ for (point_nr in (1:5)) {
   data_for_backtrajectories$settlements[point_nr] <- sum((land_use_for_trajectories$LUC_ID ==81),na.rm = TRUE)
   data_for_backtrajectories$otherland[point_nr] <- sum((land_use_for_trajectories$LUC_ID ==82),na.rm = TRUE)
 }
+
+data_for_backtrajectories$any_land <- with(data_for_backtrajectories,forest+grassland+cropland+wetland+settlements+otherland)
+
+ggmap(map) + 
+  geom_point(aes(x=Longitude,y=Latitude,colour = otherland),size = 3,data = data_for_backtrajectories, alpha = .3) +
+  scale_colour_gradient(low = "white",high = "red")
