@@ -78,16 +78,16 @@ ggmap(map) +
 # Load Land use data from LUCAS
 #land_use <- readOGR("/home/gustavo/data/TF5_JapanNZvoyage/gis_layers/lucas-nz-land-use-map-1990-2008-2012-v016","lucas-nz-land-use-map-1990-2008-2012-v016")
 land_use <- readGDAL("/home/gustavo/data/TF5_JapanNZvoyage/gis_layers/land_use_1km.tif")
+land_use <- readGDAL("/home/gustavo/data/TF5_JapanNZvoyage/gis_layers/land_use_global_MOD12C1_T3.tif")
 
 # Restrict analysis to 26 to 28 Feb ... when the ship was "near NZ"
 data_for_backtrajectories <- subset(march_data.10min, subset = (date>as.POSIXct("2013-02-26 04:00:00", tz = "UTC") & date<as.POSIXct("2013-02-28 23:59:00", tz = "UTC")))
+# Do not restrict analysis ... the whole trip!
+data_for_backtrajectories <- march_data.10min
 data_for_backtrajectories$land_use <- NA*data_for_backtrajectories$N10
 data_for_backtrajectories$forest <- data_for_backtrajectories$land_use
-data_for_backtrajectories$grassland <- data_for_backtrajectories$land_use
-data_for_backtrajectories$cropland <- data_for_backtrajectories$land_use
-data_for_backtrajectories$wetland <- data_for_backtrajectories$land_use
 data_for_backtrajectories$settlements <- data_for_backtrajectories$land_use
-data_for_backtrajectories$otherland <- data_for_backtrajectories$land_use
+data_for_backtrajectories$other_veg <- data_for_backtrajectories$land_use
 n_points <- length(data_for_backtrajectories$date)
 
 # get the number of phisical cores availables
@@ -122,16 +122,11 @@ for (point_nr in (1:n_points)){
                                       proj4string = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
   land_use_for_trajectories <- over(traj_spdf,land_use)
   data_for_backtrajectories$land_use[point_nr] <- sum(land_use_for_trajectories$band1 >0,na.rm = TRUE)
-  data_for_backtrajectories$forest[point_nr] <- sum(land_use_for_trajectories$band1 >=71 &
-                                                      land_use_for_trajectories$band1 <= 73 ,na.rm = TRUE)
-  data_for_backtrajectories$grassland[point_nr] <- sum(land_use_for_trajectories$band1 >=74 &
-                                                         land_use_for_trajectories$band1 <= 76 ,na.rm = TRUE)
-  data_for_backtrajectories$cropland[point_nr] <- sum(land_use_for_trajectories$band1 >=77 &
-                                                        land_use_for_trajectories$band1 <= 78 ,na.rm = TRUE)
-  data_for_backtrajectories$wetland[point_nr] <- sum(land_use_for_trajectories$band1 >=79 &
-                                                       land_use_for_trajectories$band1 <= 80 ,na.rm = TRUE)
-  data_for_backtrajectories$settlements[point_nr] <- sum(land_use_for_trajectories$band1 ==81 ,na.rm = TRUE)
-  data_for_backtrajectories$otherland[point_nr] <- sum(land_use_for_trajectories$band1 ==82 ,na.rm = TRUE)
+  data_for_backtrajectories$forest[point_nr] <- sum(land_use_for_trajectories$band1 >=5 &
+                                                      land_use_for_trajectories$band1 <= 8 ,na.rm = TRUE)
+  data_for_backtrajectories$other_veg[point_nr] <- sum(land_use_for_trajectories$band1 >=1 &
+                                                        land_use_for_trajectories$band1 <= 4 ,na.rm = TRUE)
+  data_for_backtrajectories$settlements[point_nr] <- sum(land_use_for_trajectories$band1 ==10 ,na.rm = TRUE)
 }
 centreLat <- mean(data_for_backtrajectories$Latitude,na.rm = TRUE)
 centreLon <- mean(data_for_backtrajectories$Longitude,na.rm = TRUE)
@@ -153,28 +148,13 @@ ggmap(map) +
 ggsave("./forest.pdf",width=20,height = 30, units = "cm")
 
 ggmap(map) + 
-  geom_point(aes(x=Longitude,y=Latitude,colour = grassland),size = 3,data = data_for_backtrajectories, alpha = .3) +
-  scale_colour_gradient(low = "white",high = "red")
-ggsave("./grassland.pdf",width=20,height = 30, units = "cm")
-
-ggmap(map) + 
-  geom_point(aes(x=Longitude,y=Latitude,colour = cropland),size = 3,data = data_for_backtrajectories, alpha = .3) +
-  scale_colour_gradient(low = "white",high = "red")
-ggsave("./cropland.pdf",width=20,height = 30, units = "cm")
-
-ggmap(map) + 
-  geom_point(aes(x=Longitude,y=Latitude,colour = wetland),size = 3,data = data_for_backtrajectories, alpha = .3) +
-  scale_colour_gradient(low = "white",high = "red")
-ggsave("./wetland.pdf",width=20,height = 30, units = "cm")
-
-ggmap(map) + 
   geom_point(aes(x=Longitude,y=Latitude,colour = settlements),size = 3,data = data_for_backtrajectories, alpha = .3) +
   scale_colour_gradient(low = "white",high = "red")
 ggsave("./settlements.pdf",width=20,height = 30, units = "cm")
 
 ggmap(map) + 
-  geom_point(aes(x=Longitude,y=Latitude,colour = otherland),size = 3,data = data_for_backtrajectories, alpha = .3) +
+  geom_point(aes(x=Longitude,y=Latitude,colour = other_veg),size = 3,data = data_for_backtrajectories, alpha = .3) +
   scale_colour_gradient(low = "white",high = "red")
-ggsave("./otherland.pdf",width=20,height = 30, units = "cm")
+ggsave("./other_veg.pdf",width=20,height = 30, units = "cm")
 
-timePlot(data_for_backtrajectories,pollutant = c('N10','n265','n3240','land_use','forest','grassland','cropland','wetland','settlements'))
+timePlot(data_for_backtrajectories,pollutant = c('N10','n265','n3240','land_use','forest','other_veg','settlements'))
