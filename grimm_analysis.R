@@ -47,7 +47,8 @@ gps.data$Date <- NULL
 gps.data$Time <- NULL
 
 # Merge the data ####
-march_data <- merge(gps.data,grimm.data,by = 'date', all = TRUE)
+all_march_data <- merge(gps.data,grimm.data,by = 'date', all = TRUE)
+march_data <- subset(all_march_data,subset = (!is.na(all_march_data$Latitude)&(!is.na(all_march_data$Longitude))))
 march_data.1min <- timeAverage(march_data,avg.time = '1 min')
 march_data.10min <- timeAverage(march_data,avg.time = '10 min')
 march_data.30min <- timeAverage(march_data,avg.time = '30 min')
@@ -71,7 +72,6 @@ map <- get_map(location = c(centreLon,centreLat),zoom  = 7, maptype = "terrain")
 ggmap(map) + 
   geom_point(aes(x=Longitude,y=Latitude,colour = log10(n265)),size = 3,data = march_data.10min, alpha = .3) +
   scale_colour_gradient(low = "white",high = "red")
-<<<<<<< HEAD
 
 # Analysis:
 # For each datapoint, calculate the 48hr backtrajectories (Hysplit) and add the "land covered" to get a total of "land influenced airmass" for each datapoint ... explore other metrics.
@@ -92,7 +92,7 @@ data_for_backtrajectories$other_veg <- data_for_backtrajectories$land_use
 n_points <- length(data_for_backtrajectories$date)
 
 # get the number of phisical cores availables
-cores <- detectCores()-1
+cores <- detectCores()
 #
 cl <- makeCluster(cores)
 
@@ -113,7 +113,7 @@ all_trajectories <- foreach(point_nr=1:n_points,.packages=c("opentraj"),.combine
            '~/data/hysplit/trunk',
            ID = point_nr,
            dates = format(data_for_backtrajectories$date[point_nr],format="%Y-%m-%d"),
-           clean.files = FALSE)
+           clean.files = TRUE)
   }
 for (point_nr in (1:n_points)){
   sample_traj <- all_trajectories[(((point_nr-1)*49+1):((point_nr)*49)),]
@@ -159,5 +159,3 @@ ggmap(map) +
 ggsave("./other_veg.pdf",width=20,height = 30, units = "cm")
 
 timePlot(data_for_backtrajectories,pollutant = c('N10','n265','n3240','land_use','forest','other_veg','settlements'))
-=======
->>>>>>> 659740db7e7930b0b6b2c4f8fbb96b84666a4b20
