@@ -13,7 +13,7 @@ require(opentraj)
 require(doParallel)
 require(rgdal)
 require(sp)
-
+require(gridExtra)
 # Load the data and create date fields ####
 # Where are the data
 data.path <- "/home/gustavo/data/TF5_JapanNZvoyage/2013_Feb/"
@@ -78,8 +78,7 @@ ggmap(map) +
 
 # Load Land use data from LUCAS
 #land_use <- readOGR("/home/gustavo/data/TF5_JapanNZvoyage/gis_layers/lucas-nz-land-use-map-1990-2008-2012-v016","lucas-nz-land-use-map-1990-2008-2012-v016")
-land_use <- readGDAL("/home/gustavo/data/TF5_JapanNZvoyage/gis_layers/land_use_1km.tif")
-land_use <- readGDAL("/home/gustavo/data/TF5_JapanNZvoyage/gis_layers/land_use_global_MOD12C1_T3.tif")
+land_use_data <- readGDAL("/home/gustavo/data/TF5_JapanNZvoyage/gis_layers/land_use_global_MOD12C1_T3.tif")
 
 # Restrict analysis to 26 to 28 Feb ... when the ship was "near NZ"
 data_for_backtrajectories <- subset(march_data.10min, subset = (date>as.POSIXct("2013-02-26 04:00:00", tz = "UTC") & date<as.POSIXct("2013-02-28 23:59:00", tz = "UTC")))
@@ -99,63 +98,105 @@ cl <- makeCluster(cores)
 registerDoParallel(cl)
 all_trajectories <- foreach(point_nr=1:n_points,.packages=c("opentraj"),.combine=rbind) %dopar%
   {
-  output.file.name<-""
-  output.file.name<-paste0("traj", "_", as.character(point_nr), "_")
+ #output.file.name<-""
+ #output.file.name<-paste0("traj", "_", as.character(point_nr), "_")
   ProcTraj(data_for_backtrajectories$Latitude[point_nr],
            data_for_backtrajectories$Longitude[point_nr],
            hour.interval = 1,
-           name = output.file.name,
+           name = 'output.file.name',
            start.hour = format(data_for_backtrajectories$date[point_nr],format="%H:00"),
            end.hour = format(data_for_backtrajectories$date[point_nr],format="%H:00"),
            '~/data/hysplit/trunk/working/',
            '~/repositories/TF5_analysis/',
-           hours = -48, height = 50,
+           hours = -96, height = 30,
            '~/data/hysplit/trunk',
            ID = point_nr,
            dates = format(data_for_backtrajectories$date[point_nr],format="%Y-%m-%d"),
            clean.files = TRUE)
   }
-for (point_nr in (1:n_points)){
+dump_output <- foreach(point_nr = 1:n_points,.packages = c("sp")) %dopar%  {
+  all_trajectories[(((point_nr-1)*49+1):((point_nr)*49)),1] <- point_nr
   sample_traj <- all_trajectories[(((point_nr-1)*49+1):((point_nr)*49)),]
   xy <- sample_traj[,c(8,7)]
   traj_spdf <- SpatialPointsDataFrame(coords = xy,
                                       data = sample_traj,
                                       proj4string = CRS("+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"))
-  land_use_for_trajectories <- over(traj_spdf,land_use)
-  data_for_backtrajectories$land_use[point_nr] <- sum(land_use_for_trajectories$band1 >0,na.rm = TRUE)
-  data_for_backtrajectories$forest[point_nr] <- sum(land_use_for_trajectories$band1 >=5 &
+  land_use_for_trajectories <- over(traj_spdf,land_use_data)
+  land_use <- sum(land_use_for_trajectories$band1 >0,na.rm = TRUE)
+  forest <- sum(land_use_for_trajectories$band1 >=5 &
                                                       land_use_for_trajectories$band1 <= 8 ,na.rm = TRUE)
-  data_for_backtrajectories$other_veg[point_nr] <- sum(land_use_for_trajectories$band1 >=1 &
+  other_veg <- sum(land_use_for_trajectories$band1 >=1 &
                                                         land_use_for_trajectories$band1 <= 4 ,na.rm = TRUE)
-  data_for_backtrajectories$settlements[point_nr] <- sum(land_use_for_trajectories$band1 ==10 ,na.rm = TRUE)
+  settlements <- sum(land_use_for_trajectories$band1 ==10 ,na.rm = TRUE)
+  c(land_use, forest, other_veg, settlements)
+}
+for (point_nr in (1:n_points)) {
+  data_for_backtrajectories$land_use[point_nr] <- dump_output[[point_nr]][1]
+  data_for_backtrajectories$forest[point_nr] <- dump_output[[point_nr]][2]
+  data_for_backtrajectories$other_veg[point_nr] <- dump_output[[point_nr]][3]
+  data_for_backtrajectories$settlements[point_nr] <- dump_output[[point_nr]][4]
 }
 centreLat <- mean(data_for_backtrajectories$Latitude,na.rm = TRUE)
 centreLon <- mean(data_for_backtrajectories$Longitude,na.rm = TRUE)
-map <- get_map(location = c(centreLon,centreLat),zoom  = 5, maptype = "terrain")
+map <- get_map(location = c(centreLon,centreLat),zoom  = 3, maptype = "terrain")
 
-ggmap(map) + 
+p1 <- ggmap(map) + 
+  ggtitle("log10(n265)")+
   geom_point(aes(x=Longitude,y=Latitude,colour = log10(n265)),size = 3,data = data_for_backtrajectories, alpha = .3) +
   scale_colour_gradient(low = "white",high = "red")
-ggsave("./log_n265.pdf",width=20,height = 30, units = "cm")
+# ggsave("./map_01.pdf",width=20,height = 30, units = "cm")
 
-ggmap(map) + 
+p2 <- ggmap(map) + 
+  ggtitle("Land")+
   geom_point(aes(x=Longitude,y=Latitude,colour = land_use),size = 3,data = data_for_backtrajectories, alpha = .3) +
   scale_colour_gradient(low = "white",high = "red")
-ggsave("./land_use.pdf",width=20,height = 30, units = "cm")
+# ggsave("./map_02.pdf",width=20,height = 30, units = "cm")
 
-ggmap(map) + 
+p3 <- ggmap(map) + 
+  ggtitle("Forest")+
   geom_point(aes(x=Longitude,y=Latitude,colour = forest),size = 3,data = data_for_backtrajectories, alpha = .3) +
   scale_colour_gradient(low = "white",high = "red")
-ggsave("./forest.pdf",width=20,height = 30, units = "cm")
+# ggsave("./map_03.pdf",width=20,height = 30, units = "cm")
 
-ggmap(map) + 
+p4 <- ggmap(map) + 
+  ggtitle("Settlements")+
   geom_point(aes(x=Longitude,y=Latitude,colour = settlements),size = 3,data = data_for_backtrajectories, alpha = .3) +
   scale_colour_gradient(low = "white",high = "red")
-ggsave("./settlements.pdf",width=20,height = 30, units = "cm")
+# ggsave("./map_04.pdf",width=20,height = 30, units = "cm")
 
-ggmap(map) + 
+p5 <- ggmap(map) + 
+  ggtitle("Other Vegetation")+
   geom_point(aes(x=Longitude,y=Latitude,colour = other_veg),size = 3,data = data_for_backtrajectories, alpha = .3) +
   scale_colour_gradient(low = "white",high = "red")
-ggsave("./other_veg.pdf",width=20,height = 30, units = "cm")
+# ggsave("./map_05.pdf",width=20,height = 30, units = "cm")
+
+centreLat <- mean(all_trajectories$lat,na.rm = TRUE)
+centreLon <- mean(all_trajectories$lon,na.rm = TRUE)
+map2 <- get_map(location = c(centreLon,centreLat),zoom  = 3, maptype = "terrain")
+p6 <- ggmap(map2) + 
+  ggtitle("All Trajectories")+
+  geom_point(aes(x=lon,y=lat,colour = height),size = 3,data = all_trajectories, alpha = .3) +
+  scale_colour_gradient(low = "white",high = "red")
+# ggsave("./map_06.pdf",width=20,height = 30, units = "cm")
+
+
+ggplot_list <- Filter(function(x) is(x, "ggplot"), mget(ls()))
+ggsave("./All_plots_30m.pdf", marrangeGrob(grobs = ggplot_list, nrow=1, ncol=1))
+
 
 timePlot(data_for_backtrajectories,pollutant = c('N10','n265','n3240','land_use','forest','other_veg','settlements'))
+
+# Explore certain trajectories ####
+datapoint <- n_points - 5
+sample_traj <- all_trajectories[(((point_nr-1)*49+1):((point_nr)*49)),]
+sample_traj <- all_trajectories
+centreLat <- mean(sample_traj$lat,na.rm = TRUE)
+centreLon <- mean(sample_traj$lon,na.rm = TRUE)
+map2 <- get_map(location = c(centreLon,centreLat),zoom  = 3, maptype = "terrain")
+ggmap(map2) + 
+  ggtitle("All Trajectories")+
+  geom_point(aes(x=lon,y=lat,colour = receptor),size = 3,data = sample_traj, alpha = .3) +
+  scale_colour_gradient(low = "white",high = "red")
+
+
+
