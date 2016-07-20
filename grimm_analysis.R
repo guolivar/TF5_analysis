@@ -1,19 +1,19 @@
 ## TF5 Grimm data analysis #
 # Load packages ####
-require(ncdf4)
-require(openair)
-require(ggplot2)
-require(rworldmap)
-require(ggmap)
-require(mapproj)
-require(corrgram)
-require(corrplot)
-require(openair)
-require(opentraj)
-require(doParallel)
-require(rgdal)
-require(sp)
-require(gridExtra)
+library('ncdf4')
+library('openair')
+library('ggplot2')
+library('rworldmap')
+library('ggmap')
+library('mapproj')
+library('corrgram')
+library('corrplot')
+library('openair')
+library('opentraj')
+library('doParallel')
+library('rgdal')
+library('sp')
+library('gridExtra')
 # Load the data and create date fields ####
 # Where are the data
 data.path <- "/home/gustavo/data/TF5_JapanNZvoyage/2013_Feb/"
