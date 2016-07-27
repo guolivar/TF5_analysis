@@ -36,7 +36,7 @@ merged_data$lon[n_merged] <- gps$lon[n_gps]
 
 # Resample to 1 minutes ####
 june2012.1minute <- timeAverage(merged_data,avg.time = '1 min')
-write.table(june2012.1minute,file = paste0(base_path_2012,'june2012_1min.csv'),sep = '\t',row.names = FALSE)
+write.table(june2012.1minute,file = paste0(base_path_2012,'../jun2012_1min.csv'),sep = '\t',row.names = FALSE)
 
 # Summary plots ####
 plot_data <- timeAverage(merged_data,avg.time = '30 min')
@@ -57,8 +57,9 @@ gps <- read.csv(paste0(base_path_2013,"gps_201305.csv"), sep=",")
 names(gps) <- c('Day','Time','lat','lon')
 gps$date <- as.POSIXct(paste(gps$Day,gps$Time),format = '%d/%m/%Y %H:%M:%OS', tz='UTC')
 picarro <- read.csv(paste0(base_path_2013,"picarro_201305.txt"), sep="")
-picarro$date <- as.POSIXct(paste(picarro$DATE,picarro$TIME),format = '%m/%d/%y %H:%M:%OS', tz='UTC+12')
-
+picarro$date <- as.POSIXct(paste(picarro$DATE,picarro$TIME),format = '%m/%d/%y %H:%M:%OS', tz='UTC')
+# Correct date from PICARRO clock
+picarro$date <- picarro$date - 12*3600
 # Merge data ####
 merged_data <- merge(gps,picarro,by = 'date', all = TRUE)
 # Patch GPS data ####
@@ -73,7 +74,7 @@ merged_data$lon[n_merged] <- gps$lon[n_gps]
 
 # Resample to 1 minutes ####
 may2013.1minute <- timeAverage(merged_data,avg.time = '1 min')
-write.table(may2013.1minute,file = paste0(base_path_2013,'may2013_1min.csv'),sep = '\t',row.names = FALSE)
+write.table(may2013.1minute,file = paste0(base_path_2013,'../may2013_1min.csv'),sep = '\t',row.names = FALSE)
 
 # Summary plots ####
 plot_data <- timeAverage(merged_data,avg.time = '30 min')
