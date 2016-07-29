@@ -36,7 +36,7 @@ merged_data$lon[n_merged] <- gps$lon[n_gps]
 
 # Resample to 1 minutes ####
 june2012.1minute <- timeAverage(merged_data,avg.time = '1 min')
-write.table(june2012.1minute,file = paste0(base_path_2012,'../jun2012_1min.csv'),sep = '\t',row.names = FALSE)
+write.table(june2012.1minute,file = paste0(base_path_2012,'../jun2012_1min.csv'),sep = '\t',row.names = FALSE, eol = '\r\n')
 
 # Summary plots ####
 plot_data <- timeAverage(merged_data,avg.time = '30 min')
@@ -74,7 +74,7 @@ merged_data$lon[n_merged] <- gps$lon[n_gps]
 
 # Resample to 1 minutes ####
 may2013.1minute <- timeAverage(merged_data,avg.time = '1 min')
-write.table(may2013.1minute,file = paste0(base_path_2013,'../may2013_1min.csv'),sep = '\t',row.names = FALSE)
+write.table(may2013.1minute,file = paste0(base_path_2013,'../may2013_1min.csv'),sep = '\t',row.names = FALSE, eol = '\r\n')
 
 # Summary plots ####
 plot_data <- timeAverage(merged_data,avg.time = '30 min')
